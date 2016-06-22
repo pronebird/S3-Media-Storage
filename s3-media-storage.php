@@ -129,6 +129,60 @@ class S3MS {
         return $url;
     }
 
+    public static function responsiveImageUrls($sources, $size_array, $image_src, $image_meta, $attachment_id) {
+        $custom_fields = get_post_custom($attachment_id);
+        $bucket = isset($custom_fields['S3MS_bucket']) ? $custom_fields['S3MS_bucket'][0] : null;
+        $bucket_path = isset($custom_fields['S3MS_bucket_path']) ? $custom_fields['S3MS_bucket_path'][0] : null;
+
+        // Was this a file we even uploaded to S3? If not bail.
+        if (!$bucket || trim($bucket) == '') {
+            return $sources;
+        }
+
+        $upload_dir = wp_upload_dir();
+        $base_url = trailingslashit( $upload_dir['baseurl'] );
+
+        $cloudfront = isset($custom_fields['S3MS_cloudfront']) ? $custom_fields['S3MS_cloudfront'][0] : null;
+        $settings = self::getSettings();
+
+        // Determine protocol to serve from
+        if ($settings['s3_protocol'] == 'http') {
+            $protocol = 'http://';
+        } elseif ($settings['s3_protocol'] == 'https') {
+            $protocol = 'https://';
+        } elseif ($settings['s3_protocol'] == 'relative') {
+            $protocol = 'http' . (is_ssl() ? 's' : '') . '://';
+        } else {
+            $protocol = 'https://';
+        }
+
+        // Loop through all assets and replace local URLs with S3 ones
+        foreach($sources as &$source) 
+        {
+            $url = $source['url'];
+            $file = str_replace( $base_url, '', $url );
+
+            // Should serve with respective protocol
+            if ($cloudfront && trim($cloudfront) != '') {
+                if ($bucket_path) {
+                    $url = $protocol . $cloudfront . '/' . $bucket_path . '/' . $file;
+                } else {
+                    $url = $protocol . $cloudfront . '/' . $file;
+                }
+            } else {
+                if ($bucket_path) {
+                    $url = $protocol . $bucket . '.s3.amazonaws.com/' . $bucket_path . '/' . $file;
+                } else {
+                    $url = $protocol . $bucket . '.s3.amazonaws.com/' . $file;
+                }
+            }
+
+            $source['url'] = $url;
+        }
+
+        return $sources;
+    }
+
     public static function deleteAttachment($url)
     {
         $settings = self::getSettings();
@@ -484,6 +538,8 @@ add_filter('image_make_intermediate_size', array('S3MS', 'imageMakeIntermediateS
 // Handle when image urls are requested.
 add_action("wp_get_attachment_url", array('S3MS', 'attachmentUrl'), 9, 2);
 add_action("wp_get_attachment_thumb_url", array('S3MS', 'attachmentUrl'), 9, 2);
+// Handle responsive image src set
+add_action("wp_calculate_image_srcset", array('S3MS', 'responsiveImageUrls'), 9, 5);
 // Handle when images are deleted.
 add_action("wp_delete_file", array('S3MS', 'deleteAttachment'));
 // We can't hook into add_attachment/edit_attachment actions as these occur too early in the chain as at that point in time,
