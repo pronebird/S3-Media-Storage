@@ -106,10 +106,7 @@ class S3MS {
         } elseif ($settings['s3_protocol'] == 'https') {
             $protocol = 'https://';
         } elseif ($settings['s3_protocol'] == 'relative') {
-            $protocol = 'http://';
-            if (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] === '443') {
-                $protocol = 'https://';
-            }
+            $protocol = 'http' . (is_ssl() ? 's' : '') . '://';
         } else {
             $protocol = 'https://';
         }
