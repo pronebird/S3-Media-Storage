@@ -94,11 +94,7 @@ class S3MS {
         }
 
         $upload_dir = wp_upload_dir();
-
-        $file = str_replace($upload_dir['baseurl'], '', $url);
-        if (substr($file, 0, 1) == '/') {
-            $file = substr($file, 1);
-        }
+        $file = str_replace( trailingslashit($upload_dir['baseurl']), '', $url );
 
         // $file = isset($custom_fields['S3MS_file']) ? $custom_fields['S3MS_file'][0] : null;
         $cloudfront = isset($custom_fields['S3MS_cloudfront']) ? $custom_fields['S3MS_cloudfront'][0] : null;
